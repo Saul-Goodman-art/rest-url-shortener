@@ -1,0 +1,14 @@
+# IDE
+.idea/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# DB
+storage/storage.db
