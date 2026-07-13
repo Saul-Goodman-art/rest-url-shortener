@@ -98,8 +98,17 @@ func TestSaveHandler(t *testing.T) {
 			*/
 			handler.ServeHTTP(rr, req)
 
-			//проверяет, что HTTP-статус ответа равен 200 OK
-			require.Equal(t, rr.Code, http.StatusOK)
+			expectedStatus := http.StatusOK
+
+			if tc.respError != "" && tc.mockError == nil {
+				expectedStatus = http.StatusBadRequest
+			}
+
+			if tc.mockError != nil {
+				expectedStatus = http.StatusInternalServerError
+			}
+
+			require.Equal(t, expectedStatus, rr.Code)
 
 			body := rr.Body.String() // извлекает тело ответа из httptest.ResponseRecorder в виде строки, чтобы потом проанализировать его содержимое.
 
@@ -115,6 +124,63 @@ func TestSaveHandler(t *testing.T) {
 			require.Equal(t, tc.respError, resp.Error)
 
 			// TODO: add more checks
+		})
+	}
+}
+
+func TestSaveHandler_InvalidJSON(t *testing.T) {
+	cases := []struct {
+		name       string
+		input      string
+		wantStatus int
+		wantError  string
+	}{
+		{
+			name:       "Malformed JSON",
+			input:      `{"url": "https://google.com", "alias":`, // обрыв JSON
+			wantStatus: http.StatusBadRequest,
+			wantError:  "failed to decode request",
+		},
+		{
+			name:       "Not JSON at all",
+			input:      `not json at all`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  "failed to decode request",
+		},
+		{
+			name:       "Valid JSON but missing fields",
+			input:      `{"wrong": "field"}`,
+			wantStatus: http.StatusBadRequest,
+			wantError:  "field URL is a required field",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// мок хранилища — не должен вызываться при невалидном JSON
+			urlSaverMock := mocks.NewURLSaver(t)
+
+			handler := save.New(slogdiscard.NewDiscardLogger(), urlSaverMock)
+
+			req := httptest.NewRequest(http.MethodPost, "/save", bytes.NewReader([]byte(tc.input)))
+			rr := httptest.NewRecorder()
+
+			handler.ServeHTTP(rr, req)
+
+			// Проверяем статус
+			require.Equal(t, tc.wantStatus, rr.Code)
+
+			// Парсим JSON-ответ
+			var resp save.Response
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+
+			// Проверяем текст ошибки
+			require.Equal(t, tc.wantError, resp.Error)
+
+			// Проверяем, что мок НЕ вызывался
+			urlSaverMock.AssertNotCalled(t, "SaveURL", mock.Anything, mock.Anything)
 		})
 	}
 }

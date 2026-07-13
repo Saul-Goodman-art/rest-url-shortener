@@ -26,9 +26,9 @@ type URLDeleter interface {
 }
 
 func New(log *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc { //  это фабрика хендлера.
-	//Он создаёт и возвращает функцию‑обработчик HTTP‑запроса, в которую уже «вшиты» твой логгер и твой storage.
+	//Он создаёт и возвращает функцию-обработчик HTTP-запроса, в которую уже «вшиты» твой логгер и твой storage.
 
-	// эта анонимн функция  - Это и есть HTTP‑хендлер, который Chi будет вызывать при запросе.
+	// эта анонимн функция  - Это и есть HTTP-хендлер, который Chi будет вызывать при запросе.
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.url.delete.New"
 
@@ -41,6 +41,7 @@ func New(log *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc { //  это 
 		if alias == "" {
 			log.Info("alias is empty")
 
+			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.Error("invalid request"))
 
 			return
@@ -48,19 +49,26 @@ func New(log *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc { //  это 
 
 		deletedURL, err := urlDeleter.DeleteURL(alias)
 		if errors.Is(err, storage.ErrURLNotFound) {
-			log.Info("url not found", "alias", alias)
+			log.Info("url not found", slog.String("alias", alias))
+
+			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, resp.Error("not found"))
+
 			return
 		}
 
 		if err != nil {
-			log.Error("failed to get url", sl.Err(err))
+			log.Error("failed to delete url", sl.Err(err))
+
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("internal error"))
+
 			return
 		}
 
 		log.Info("deleted url", slog.String("url", deletedURL))
 
+		render.Status(r, http.StatusOK)
 		responseOK(w, r, deletedURL)
 	}
 }

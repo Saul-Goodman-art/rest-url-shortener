@@ -52,6 +52,8 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 		if alias == "" {
 			log.Info("alias is empty")
 
+			// Клиент отправил некорректный запрос
+			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.Error("invalid request"))
 
 			return
@@ -59,15 +61,20 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 
 		resURL, err := urlGetter.GetURL(alias)
 		if errors.Is(err, storage.ErrURLNotFound) {
-			log.Info("url not found", "alias", alias)
+			log.Info("url not found", slog.String("alias", alias))
 
+			// Алиас отсутствует в хранилище
+			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, resp.Error("not found"))
 
 			return
 		}
+
 		if err != nil {
 			log.Error("failed to get url", sl.Err(err))
 
+			// Любая другая ошибка считается внутренней ошибкой сервера
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("internal error"))
 
 			return

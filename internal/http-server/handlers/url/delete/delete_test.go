@@ -19,33 +19,55 @@ import (
 
 func TestDeleteHandler(t *testing.T) {
 	cases := []struct {
-		name       string
-		alias      string
-		deletedURL string
-		mockError  error
-		respError  string
+		name           string
+		alias          string
+		deletedURL     string
+		mockError      error
+		respError      string
+		expectedURL    string
+		expectedCode   int
+		shouldCallMock bool
 	}{
 		{
-			name:       "Success",
-			alias:      "test_alias",
-			deletedURL: "https://google.com",
+			name:           "Success",
+			alias:          "test_alias",
+			deletedURL:     "https://google.com",
+			expectedURL:    "https://google.com",
+			expectedCode:   http.StatusOK,
+			shouldCallMock: true,
 		},
 		{
-			name:      "Alias empty",
-			alias:     "",
-			respError: "invalid request",
+			name:           "Alias empty",
+			alias:          "",
+			respError:      "invalid request",
+			expectedCode:   http.StatusBadRequest,
+			shouldCallMock: false,
 		},
 		{
-			name:      "Not found",
-			alias:     "missing",
-			mockError: storage.ErrURLNotFound,
-			respError: "not found",
+			name:           "Not found",
+			alias:          "missing",
+			mockError:      storage.ErrURLNotFound,
+			respError:      "not found",
+			expectedCode:   http.StatusNotFound,
+			shouldCallMock: true,
 		},
 		{
-			name:      "Internal error",
-			alias:     "test_alias",
-			mockError: errors.New("unexpected"),
-			respError: "internal error",
+			name:           "Internal error",
+			alias:          "test_alias",
+			mockError:      errors.New("unexpected"),
+			respError:      "internal error",
+			expectedCode:   http.StatusInternalServerError,
+			shouldCallMock: true,
+		},
+
+		{
+			name:           "URL returned together with error",
+			alias:          "test_alias",
+			deletedURL:     "https://google.com",
+			mockError:      errors.New("boom"),
+			respError:      "internal error",
+			expectedCode:   http.StatusInternalServerError,
+			shouldCallMock: true,
 		},
 	}
 
@@ -53,7 +75,7 @@ func TestDeleteHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			urlDeleterMock := mocks.NewURLDeleter(t)
 
-			if tc.alias != "" {
+			if tc.shouldCallMock {
 				urlDeleterMock.
 					On("DeleteURL", tc.alias).
 					Return(tc.deletedURL, tc.mockError).
@@ -87,6 +109,11 @@ func TestDeleteHandler(t *testing.T) {
 				r.ServeHTTP(rr, req)
 			}
 
+			require.Equal(t, tc.expectedCode, rr.Code)
+			require.Contains(t,
+				rr.Header().Get("Content-Type"),
+				"application/json",
+			)
 			var resp struct {
 				Status string `json:"status"`
 				Error  string `json:"error"`
@@ -95,11 +122,36 @@ func TestDeleteHandler(t *testing.T) {
 
 			// Убедимся, что тело — валидный JSON от нашего хендлера
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+
 			require.Equal(t, tc.respError, resp.Error)
 
 			if tc.respError == "" {
-				require.Equal(t, tc.deletedURL, resp.URL)
+				require.Equal(t, tc.expectedURL, resp.URL)
 			}
+
+			// Проверяем структуру JSON
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &raw))
+
+			if tc.respError == "" {
+				_, ok := raw["deleted-url"]
+				require.True(t, ok)
+
+				_, ok = raw["error"]
+				require.False(t, ok)
+			} else {
+				_, ok := raw["deleted-url"]
+				require.False(t, ok)
+
+				_, ok = raw["error"]
+				require.True(t, ok)
+			}
+
+			if !tc.shouldCallMock {
+				urlDeleterMock.AssertNotCalled(t, "DeleteURL")
+			}
+
+			urlDeleterMock.AssertExpectations(t)
 		})
 	}
 }

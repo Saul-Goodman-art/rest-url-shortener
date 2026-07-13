@@ -39,7 +39,7 @@ func TestURLShortener_HappyPath(t *testing.T) {
 
 	//
 	e.POST("/url"). // Отправляем POST‑запрос
-		WithJSON(save.Request{ // какой будет джесон в теле запроса
+			WithJSON(save.Request{ // какой будет джесон в теле запроса
 			URL:   gofakeit.URL(),
 			Alias: random.NewRandomString(10),
 		}).
@@ -60,7 +60,7 @@ func TestURLShortener_SaveRedirect(t *testing.T) {
 	}{
 		{
 			name:  "Valid URL",
-			url:   gofakeit.URL(),
+			url:   "https://go.dev", // <--- ЗАМЕНИЛИ gofakeit.URL() на реальный URL
 			alias: gofakeit.Word() + gofakeit.Word(),
 		},
 		{
@@ -71,7 +71,7 @@ func TestURLShortener_SaveRedirect(t *testing.T) {
 		},
 		{
 			name:  "Empty Alias",
-			url:   gofakeit.URL(),
+			url:   "https://google.com", // <--- ЗДЕСЬ ТОЖЕ
 			alias: "",
 		},
 		// TODO: add more test cases
@@ -88,13 +88,19 @@ func TestURLShortener_SaveRedirect(t *testing.T) {
 
 			// Save
 
+			// Вычисляем правильный статус: если ждем ошибку - это 400, иначе 200
+			expectedStatus := http.StatusOK
+			if tc.error != "" {
+				expectedStatus = http.StatusBadRequest
+			}
+
 			resp := e.POST("/url").
 				WithJSON(save.Request{
 					URL:   tc.url,
 					Alias: tc.alias,
 				}).
 				WithBasicAuth("myuser", "mypass").
-				Expect().Status(http.StatusOK).
+				Expect().Status(expectedStatus). // <--- БЫЛО http.StatusOK, СТАЛО expectedStatus
 				JSON().Object()
 
 			if tc.error != "" {
@@ -153,37 +159,41 @@ func TestURLShortener_Delete(t *testing.T) {
 	createdURL := gofakeit.URL()
 
 	createResp := e.POST("/url"). // в createResp сохр-ся результат реальн запроса
-		WithJSON(save.Request{ // То есть именно этот JSON попадет в ваш хендлер save.New(...)
+					WithJSON(save.Request{ // То есть именно этот JSON попадет в ваш хендлер save.New(...)
 			URL:   createdURL,
 			Alias: createdAlias,
 		}).
 		WithBasicAuth("myuser", "mypass").
-		Expect(). // Вот здесь запрос реально отправляется на сервер.
+		Expect().              // Вот здесь запрос реально отправляется на сервер.
 		Status(http.StatusOK). // Проверяет, что именно сервер ответил
-		JSON().Object() // Говорит библиотеке: "Ответ должен быть JSON-объектом." После этого можно обращаться к его полям.
+		JSON().Object()        // Говорит библиотеке: "Ответ должен быть JSON-объектом." После этого можно обращаться к его полям.
 
 	createResp.Value("alias").String().IsEqual(createdAlias) // Убедимся, что alias вернулся
 
 	// --- Табличные кейсы ---
 	cases := []struct {
-		name      string
-		kind      string // "success", "not_found", "empty_alias"
-		expectErr string // текст ошибки в теле (для not_found), пусто для success, ignored for empty_alias
+		name           string
+		kind           string // "success", "not_found", "empty_alias"
+		expectErr      string // текст ошибки в теле (для not_found), пусто для success, ignored for empty_alias
+		expectedStatus int
 	}{
 		{
-			name:      "Success delete existing",
-			kind:      "success",
-			expectErr: "",
+			name:           "Success delete existing",
+			kind:           "success",
+			expectErr:      "",
+			expectedStatus: http.StatusOK,
 		},
 		{
-			name:      "Not found (delete other alias)",
-			kind:      "not_found",
-			expectErr: "not found",
+			name:           "Not found (delete other alias)",
+			kind:           "not_found",
+			expectErr:      "not found",
+			expectedStatus: http.StatusNotFound,
 		},
 		{
-			name:      "Empty alias -> 405 Method Not Allowed",
-			kind:      "empty_alias",
-			expectErr: "",
+			name:           "Empty alias -> 405 Method Not Allowed",
+			kind:           "empty_alias",
+			expectErr:      "",
+			expectedStatus: http.StatusMethodNotAllowed,
 		},
 	}
 
@@ -191,20 +201,18 @@ func TestURLShortener_Delete(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// Функциональные кейсы — используют уже созданную запись
+
+			var deleteTarget string
+			var expectedURL string
+
 			switch tc.kind {
 			case "empty_alias":
 				// Отправляем реальный HTTP запрос DELETE /url/ и ожидаем 405
 				e.DELETE("/url/").
 					WithBasicAuth("myuser", "mypass").
 					Expect().
-					Status(http.StatusMethodNotAllowed)
+					Status(tc.expectedStatus)
 				return
-			}
-
-			var deleteTarget string
-			var expectedURL string
-
-			switch tc.kind {
 			case "success":
 				deleteTarget = createdAlias
 				expectedURL = createdURL
@@ -218,7 +226,7 @@ func TestURLShortener_Delete(t *testing.T) {
 			delResp := e.DELETE("/url/"+deleteTarget).
 				WithBasicAuth("myuser", "mypass").
 				Expect().
-				Status(http.StatusOK).
+				Status(tc.expectedStatus).
 				JSON().Object()
 
 			// Если ожидается ошибка — проверяем поля status и error
@@ -234,10 +242,116 @@ func TestURLShortener_Delete(t *testing.T) {
 			// После удаления GET /{alias} должен вернуть not found
 			getResp := e.GET("/" + createdAlias).
 				Expect().
-				Status(http.StatusOK).
+				Status(http.StatusNotFound).
 				JSON().Object()
 
+			getResp.Value("status").String().IsEqual("Error")
 			getResp.Value("error").String().IsEqual("not found")
+		})
+	}
+}
+
+// tests/url_shortener_test.go
+
+func TestURLShortener_Authorization(t *testing.T) {
+	u := url.URL{
+		Scheme: "http",
+		Host:   host,
+	}
+	e := httpexpect.Default(t, u.String())
+
+	// Создаём реальный alias для теста DELETE с валидной авторизацией
+	deleteAlias := gofakeit.Word() + "_delete_auth"
+
+	e.POST("/url").
+		WithBasicAuth("myuser", "mypass").
+		WithJSON(save.Request{
+			URL:   gofakeit.URL(),
+			Alias: deleteAlias,
+		}).
+		Expect().
+		Status(http.StatusOK)
+
+	tests := []struct {
+		name           string
+		username       string
+		password       string
+		method         string
+		path           string
+		body           interface{}
+		expectedStatus int
+	}{
+		{
+			name:           "POST /url - No auth",
+			username:       "",
+			password:       "",
+			method:         http.MethodPost,
+			path:           "/url",
+			body:           save.Request{URL: "https://google.com", Alias: "test"},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "POST /url - Wrong password",
+			username:       "myuser",
+			password:       "wrongpass",
+			method:         http.MethodPost,
+			path:           "/url",
+			body:           save.Request{URL: "https://google.com", Alias: "test"},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "POST /url - Wrong user",
+			username:       "wronguser",
+			password:       "mypass",
+			method:         http.MethodPost,
+			path:           "/url",
+			body:           save.Request{URL: "https://google.com", Alias: "test"},
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "POST /url - Valid auth",
+			username: "myuser",
+			password: "mypass",
+			method:   http.MethodPost,
+			path:     "/url",
+			// БЫЛО: body: save.Request{URL: "https://google.com", Alias: "test"},
+			// СТАЛО (генерируем уникальные данные, чтобы избежать 409 Conflict):
+			body:           save.Request{URL: gofakeit.URL(), Alias: gofakeit.Word() + "_auth_test"},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "DELETE /url/alias - No auth",
+			username:       "",
+			password:       "",
+			method:         http.MethodDelete,
+			path:           "/url/test_alias",
+			body:           nil,
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "DELETE /url/alias - Valid auth",
+			username:       "myuser",
+			password:       "mypass",
+			method:         http.MethodDelete,
+			path:           "/url/" + deleteAlias,
+			body:           nil,
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := e.Request(tc.method, tc.path)
+
+			if tc.username != "" && tc.password != "" {
+				req.WithBasicAuth(tc.username, tc.password)
+			}
+
+			if tc.body != nil {
+				req.WithJSON(tc.body)
+			}
+
+			req.Expect().Status(tc.expectedStatus)
 		})
 	}
 }
