@@ -12,9 +12,9 @@ import (
 
 // struct tags
 type Config struct {
-	Env         string `yaml:"env" env-default:"local"` // при сериализации/десериализации в YAML поле Env будет соответствовать ключу env.Без этого тега использовалось бы имя поля (Env)
-	StoragePath string `yaml:"storage_path" env-required:"true"`
-	HTTPServer  `yaml:"http_server"`
+	Env        string `yaml:"env" env-default:"local"`         // при сериализации/десериализации в YAML поле Env будет соответствовать ключу env.Без этого тега использовалось бы имя поля (Env)
+	StorageDSN string `yaml:"storage_dsn" env-required:"true"` // <-- ИЗМЕНИЛОСЬ ЗДЕСЬ
+	HTTPServer `yaml:"http_server"`
 }
 
 type HTTPUser struct {
