@@ -25,15 +25,11 @@ func New(dsn string) (*Storage, error) {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	// Проверяем, что подключение реально работает
 	if err := db.PingContext(context.Background()); err != nil {
 		return nil, fmt.Errorf("%s: ping error: %w", op, err)
 	}
 
-	// Инициализируем таблицу
-	if err := initTable(db); err != nil {
-		return nil, fmt.Errorf("%s: init table error: %w", op, err)
-	}
+	// initTable(db) -- ЭТУ СТРОКУ УДАЛИЛИ!
 
 	return &Storage{db: db}, nil
 }

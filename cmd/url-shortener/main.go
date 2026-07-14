@@ -32,6 +32,17 @@ func main() {
 	log.Debug("debug messages are enabled")
 	log.Error("erorrororo. Это просто пример")
 
+	// НАЧАЛО: Запуск миграций (только для локальной разработки)
+	if cfg.Env == envLocal || cfg.Env == envDev {
+		log.Info("running database migrations...")
+		if err := postgres.RunMigrations(cfg.StorageDSN, "file://migrations"); err != nil {
+			log.Error("failed to run migrations", sl.Err(err))
+			os.Exit(1)
+		}
+		log.Info("migrations applied successfully")
+	}
+	// КОНЕЦ: Запуск миграций
+
 	storage, err := postgres.New(cfg.StorageDSN)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))

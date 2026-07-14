@@ -1,0 +1,1 @@
+DELETE FROM urls WHERE alias IN ('google', 'github');
