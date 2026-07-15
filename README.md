@@ -59,8 +59,13 @@ migrations/000002_add_seed_data.down.sql (Откат сида)
 go get github.com/testcontainers/testcontainers-go
 go get github.com/testcontainers/testcontainers-go/modules/postgres
 
+пояснение:
+github.com/testcontainers/testcontainers-go — ядро библиотеки для управления Docker-контейнерами из кода.
+github.com/testcontainers/testcontainers-go/modules/postgres — специфичный модуль для Postgres, чтобы не писать конфигурацию контейнера с нуля (он уже знает про юзера, пароль и стандартные порты).
 
 
+запуск тестов storage
+go test -v ./internal/storage/postgres -count=1
 
 
 
