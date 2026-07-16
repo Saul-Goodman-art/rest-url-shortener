@@ -62,6 +62,20 @@ jobs:
               sleep 2
             done
           "
+          
+      - name: Create database if not exists
+        run: |
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "
+            docker exec url_shortener_postgres \
+            psql -U postgres \
+            -tc \"SELECT 1 FROM pg_database WHERE datname='url_shortener'\" \
+            | grep -q 1 || \
+            docker exec url_shortener_postgres \
+            psql -U postgres \
+            -c \"CREATE DATABASE url_shortener\"
+          "
+          
+
       - name: Remove old systemd service file
         run: |
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "rm -f /etc/systemd/system/url-shortener.service"
