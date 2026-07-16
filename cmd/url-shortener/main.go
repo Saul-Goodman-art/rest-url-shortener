@@ -59,13 +59,9 @@ func main() {
 
 	// все что внутри Этого нового роутера защищено авторизацией .
 	router.Route("/url", func(r chi.Router) {
-		users := map[string]string{}
-
-		for _, u := range cfg.HTTPServer.Users {
-			users[u.User] = u.Password
-		}
-
-		r.Use(middleware.BasicAuth("url-shortener", users))
+		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
+			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+		}))
 
 		r.Post("/", save.New(log, storage))
 		r.Delete("/{alias}", delete.New(log, storage))
