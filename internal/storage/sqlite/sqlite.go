@@ -7,8 +7,7 @@ import (
 	"strings"
 	"url-shortener/internal/storage"
 
-	//_ "github.com/mattn/go-sqlite3" // init sqlite3 driver
-	_ "modernc.org/sqlite" // ✅ вместо github.com/mattn/go-sqlite3
+	_ "modernc.org/sqlite"
 )
 
 type Storage struct {
@@ -23,7 +22,6 @@ func New(storagePath string) (*Storage, error) {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	// Но понятно что в реальном проекте будут использоваться миграции .
 	stmt, err := db.Prepare(`
 	CREATE TABLE IF NOT EXISTS url(
 		id INTEGER PRIMARY KEY,
@@ -43,7 +41,6 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-// По поводу возвращения (int64, error) в некоторых базах данных при функции сейф айдишник может не возвращаться , возможно его лучше убрать впоследствии
 func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
 	const op = "storage.sqlite.SaveURL"
 
@@ -54,7 +51,6 @@ func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
 
 	res, err := stmt.Exec(urlToSave, alias)
 	if err != nil {
-		// Проверяем на ошибку уникальности для modernc.org/sqlite
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
 			return 0, fmt.Errorf("%s: %w", op, storage.ErrURLExists)
 		}
@@ -91,11 +87,9 @@ func (s *Storage) GetURL(alias string) (string, error) {
 	return resURL, nil
 }
 
-// TODO: implement method
 func (s *Storage) DeleteURL(alias string) (string, error) {
 	const op = "storage.sqlite.DeleteURL"
 
-	// получим удаляемый юрл
 	stmtDelete, err := s.db.Prepare("SELECT url FROM url WHERE alias = ?")
 	if err != nil {
 		return "", fmt.Errorf("%s: prepare statement: %w", op, err)
@@ -106,11 +100,8 @@ func (s *Storage) DeleteURL(alias string) (string, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", storage.ErrURLNotFound
 		}
-
 		return "", fmt.Errorf("%s: execute statement: %w", op, err)
 	}
-
-	// непосредственно удалим юрл
 	stmt, err := s.db.Prepare("DELETE FROM url WHERE alias = ?")
 	if err != nil {
 		return "", fmt.Errorf("%s: prepare statement: %w", op, err)
@@ -119,15 +110,12 @@ func (s *Storage) DeleteURL(alias string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%s: execute statement: %w", op, err)
 	}
-
-	rowsAffected, err := res.RowsAffected() // res.RowsAffected() возвращает количество строк, которые были затронуты SQL-запросом.
+	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		return "", fmt.Errorf("%s: get rows affected: %w", op, err)
 	}
-
 	if rowsAffected == 0 {
 		return "", storage.ErrURLNotFound // 👈 запись не найдена
 	}
-
 	return dletedUrl, nil
 }

@@ -55,7 +55,6 @@ func TestRedirectIntegration(t *testing.T) {
 			redirectedToURL, err := api.GetRedirect(ts.URL + "/" + tc.alias)
 			require.NoError(t, err)
 
-			// Check the final URL after redirection.
 			assert.Equal(t, tc.url, redirectedToURL)
 		})
 	}
@@ -63,21 +62,14 @@ func TestRedirectIntegration(t *testing.T) {
 
 func TestRedirectHandler(t *testing.T) {
 	cases := []struct {
-		name string
-
-		alias string
-
-		url string
-
-		mockError error
-
-		expectedStatus int
-
+		name             string
+		alias            string
+		url              string
+		mockError        error
+		expectedStatus   int
 		expectedLocation string
-
-		respError string
-
-		shouldCallMock bool
+		respError        string
+		shouldCallMock   bool
 	}{
 		{
 			name:             "Success",
@@ -137,7 +129,6 @@ func TestRedirectHandler(t *testing.T) {
 				urlGetterMock,
 			)
 
-			// Router для нормального прохождения через chi (непустые alias)
 			r := chi.NewRouter()
 			r.Get("/{alias}", handler)
 
@@ -145,11 +136,6 @@ func TestRedirectHandler(t *testing.T) {
 			var rr *httptest.ResponseRecorder
 
 			if tc.alias == "" {
-
-				// Chi не матчит "/{alias}" для пути "/" — используем "/"
-				// и вручную создаём RouteContext с пустым alias,
-				// чтобы chi.URLParam внутри хендлера вернул ""
-
 				req = httptest.NewRequest(http.MethodGet, "/", nil)
 
 				rc := chi.NewRouteContext()
@@ -162,75 +148,56 @@ func TestRedirectHandler(t *testing.T) {
 						rc,
 					),
 				)
-
 				rr = httptest.NewRecorder()
-
-				// Можно вызвать handler напрямую,
-				// но важно, чтобы в контексте был RouteContext
-
 				handler.ServeHTTP(rr, req)
 
 			} else {
-
 				req = httptest.NewRequest(
 					http.MethodGet,
 					"/"+tc.alias,
 					nil,
 				)
-
 				rr = httptest.NewRecorder()
-
 				r.ServeHTTP(rr, req)
 			}
 
 			require.Equal(t, tc.expectedStatus, rr.Code)
-
 			if tc.respError == "" {
-
 				require.Equal(
 					t,
 					tc.expectedLocation,
 					rr.Header().Get("Location"),
 				)
-
 				return
 			}
-
 			require.Contains(
 				t,
 				rr.Header().Get("Content-Type"),
 				"application/json",
 			)
-
 			require.Empty(
 				t,
 				rr.Header().Get("Location"),
 			)
-
 			var resp struct {
 				Status string `json:"status"`
 				Error  string `json:"error"`
 			}
-
 			require.NoError(
 				t,
 				json.Unmarshal(rr.Body.Bytes(), &resp),
 			)
-
 			require.Equal(
 				t,
 				"Error",
 				resp.Status,
 			)
-
 			require.Equal(
 				t,
 				tc.respError,
 				resp.Error,
 			)
-
 			if !tc.shouldCallMock {
-
 				urlGetterMock.AssertNotCalled(
 					t,
 					"GetURL",

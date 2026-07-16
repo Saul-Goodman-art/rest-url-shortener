@@ -19,16 +19,12 @@ type response struct {
 	Url string `json:"deleted-url,omitempty"`
 }
 
-//
 //go:generate go run github.com/vektra/mockery/v2@latest --name=URLDeleter
 type URLDeleter interface {
 	DeleteURL(alias string) (string, error)
 }
 
 func New(log *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc { //  это фабрика хендлера.
-	//Он создаёт и возвращает функцию-обработчик HTTP-запроса, в которую уже «вшиты» твой логгер и твой storage.
-
-	// эта анонимн функция  - Это и есть HTTP-хендлер, который Chi будет вызывать при запросе.
 	return func(w http.ResponseWriter, r *http.Request) {
 		const op = "handlers.url.delete.New"
 
@@ -43,7 +39,6 @@ func New(log *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc { //  это 
 
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.Error("invalid request"))
-
 			return
 		}
 
@@ -53,7 +48,6 @@ func New(log *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc { //  это 
 
 			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, resp.Error("not found"))
-
 			return
 		}
 
@@ -62,7 +56,6 @@ func New(log *slog.Logger, urlDeleter URLDeleter) http.HandlerFunc { //  это 
 
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("internal error"))
-
 			return
 		}
 

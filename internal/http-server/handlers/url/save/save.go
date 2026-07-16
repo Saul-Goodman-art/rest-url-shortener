@@ -8,9 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
-
-	//"golang.org/x/exp/slog"
-	"log/slog" // ✅ меняем на стандартный
+	"log/slog"
 
 	resp "url-shortener/internal/lib/api/response"
 	"url-shortener/internal/lib/logger/sl"
@@ -18,43 +16,9 @@ import (
 	"url-shortener/internal/storage"
 )
 
-/*
-Что делает этот код в общих чертах
-Это HTTP-обработчик для сохранения сокращённых URL-адресов.
-Он принимает запрос с длинным URL, генерирует для него короткий
-алиас (ссылку) и сохраняет в хранилище.
-*/
-
-/*
-КАК ПРОХОДИТ ПОТОК ДАННЫХ
-
-Клиент → POST /save
-{
-    "url": "https://example.com/very/long/url",
-    "alias": ""                    // опционально
-}
-    ↓
-Обработчик:
-    1. Проверяет URL
-    2. Генерирует алиас "x7kL9p"
-    3. Сохраняет в БД
-    ↓
-Клиент ← Ответ
-{
-    "status": "ok",
-    "alias": "x7kL9p"
-}
-*/
-
-/*
-Теги управляют сериализацией/десериализацией JSON:
-
-	json:"url" - при парсинге JSON ищет поле с ключом "url"
-	json:"alias,omitempty" - ищет поле "alias", и если оно пустое (""), то при выводе в JSON это поле будет пропущено
-*/
 type Request struct {
-	URL   string `json:"url" validate:"required,url"` //  По валидации: поля не может быть пустым, url должен быть корректным
-	Alias string `json:"alias,omitempty"`             // omitempty: если этот параметр пустой, то в итоге в джесоне он будет отсутствовать
+	URL   string `json:"url" validate:"required,url"`
+	Alias string `json:"alias,omitempty"`
 }
 
 type Response struct {
@@ -62,11 +26,8 @@ type Response struct {
 	Alias string `json:"alias,omitempty"`
 }
 
-// TODO: move to config if needed
 const aliasLength = 6
 
-// С помощью этой команды можно генерировать моки . Этот мол будет применяться в тесте/ Прямо нажимаем на запустить прямо здесь, и появится папка с моком и URLSaver.go
-//
 //go:generate go run github.com/vektra/mockery/v2@latest --name=URLSaver
 type URLSaver interface {
 	SaveURL(urlToSave string, alias string) (int64, error)
@@ -83,23 +44,18 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 
 		var req Request
 
-		err := render.DecodeJSON(r.Body, &req) // Эта строка делает декодирование JSON из тела HTTP запроса в структуру Request.
+		err := render.DecodeJSON(r.Body, &req)
 		if errors.Is(err, io.EOF) {
-			// Такую ошибку встретим, если получили запрос с пустым телом.
-			// Обработаем её отдельно
 			log.Error("request body is empty")
-
 			render.Status(r, http.StatusBadRequest)
-
-			render.JSON(w, r, resp.Error("empty request")) // отправляет JSON-ответ клиенту с ошибкой. сериализует в джесон
-			return                                         // Добавляем return потому что render.JSON не прерывает выполнения запроса
+			render.JSON(w, r, resp.Error("empty request"))
+			return
 		}
 		if err != nil {
 			log.Error("failed to decode request body", sl.Err(err))
 
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.Error("failed to decode request"))
-
 			return
 		}
 
@@ -112,12 +68,11 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.ValidationError(validateErr))
-
 			return
 		}
 
 		alias := req.Alias
-		if alias == "" { // Если элиас пустой то мы генерируем его из случайных символов
+		if alias == "" {
 			alias = random.NewRandomString(aliasLength)
 		}
 
@@ -127,7 +82,6 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 
 			render.Status(r, http.StatusConflict)
 			render.JSON(w, r, resp.Error("url already exists"))
-
 			return
 		}
 		if err != nil {
@@ -135,12 +89,10 @@ func New(log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("failed to add url"))
-
 			return
 		}
 
 		log.Info("url added", slog.Int64("id", id))
-
 		responseOK(w, r, alias)
 	}
 }
