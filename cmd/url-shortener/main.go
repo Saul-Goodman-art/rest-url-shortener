@@ -33,7 +33,7 @@ func main() {
 	log.Error("erorrororo. Это просто пример")
 
 	// НАЧАЛО: Запуск миграций (только для локальной разработки)
-	if cfg.Env == envLocal || cfg.Env == envDev {
+	if cfg.Env == envLocal || cfg.Env == envDev || cfg.Env == envProd {
 		log.Info("running database migrations...")
 		if err := postgres.RunMigrations(cfg.StorageDSN, "file://migrations"); err != nil {
 			log.Error("failed to run migrations", sl.Err(err))
