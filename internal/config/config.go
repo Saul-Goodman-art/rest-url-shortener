@@ -17,25 +17,25 @@ type Config struct {
 	HTTPServer `yaml:"http_server"`
 }
 
-type HTTPUser struct {
-	User     string `yaml:"user" env-required:"true"`
-	Password string `yaml:"password" env-required:"true" env:"HTTP_SERVER_PASSWORD"`
-}
+//type HTTPUser struct {
+//	User     string `yaml:"user" env-required:"true"`
+//	Password string `yaml:"password" env-required:"true" env:"HTTP_SERVER_PASSWORD"`
+//}
+//
+//type HTTPServer struct {
+//	Address     string        `yaml:"address" env-default:"localhost:8080"`
+//	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
+//	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+//	Users       []HTTPUser    `yaml:"users"`
+//}
 
 type HTTPServer struct {
 	Address     string        `yaml:"address" env-default:"localhost:8080"`
 	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
 	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
-	Users       []HTTPUser    `yaml:"users"`
+	User        string        `yaml:"user" env-required:"true"`
+	Password    string        `yaml:"password" env-required:"true" env:"HTTP_SERVER_PASSWORD"`
 }
-
-//type HTTPServer struct {
-//	Address     string        `yaml:"address" env-default:"localhost:8080"`
-//	Timeout     time.Duration `yaml:"timeout" env-default:"4s"`
-//	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
-//	User        string        `yaml:"user" env-required:"true"`
-//	Password    string        `yaml:"password" env-required:"true" env:"HTTP_SERVER_PASSWORD"`
-//}
 
 // ф-я, котор прочитает йамл и создаст и заполнит конфиг
 // В ее названии "MustLoad" - маст значит, Что в случае ошибки функция будет паниковать. Здесь это уместно, ибо конфиг - это архиважно. Приложение только запускается и его не страшно уронить
