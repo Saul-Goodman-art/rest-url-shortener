@@ -1,15 +1,13 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16-alpine
     container_name: url_shortener_postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: qwepfcbaqwerfdgk45q12jfn5
       POSTGRES_DB: url_shortener
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
 
