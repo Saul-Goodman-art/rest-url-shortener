@@ -56,5 +56,9 @@ func MustLoad() *Config {
 		log.Fatalf("cannot read config: %s", err)
 	}
 
+	if err := cleanenv.UpdateEnv(&cfg); err != nil {
+		log.Fatalf("cannot update config from env: %s", err)
+	}
+
 	return &cfg
 }

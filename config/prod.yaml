@@ -8,4 +8,4 @@ http_server:
   idle_timeout: 30s
   users:
     - user: "Shabby8574"
-      password: "super_puper_secr_paswword_12348"
+      password: ""
