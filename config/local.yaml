@@ -7,7 +7,7 @@ http_server:
 
   users:
     - user: "Shabby8574"
-      password: ""
+#      password: ""
 #    - user: "Shabby8574"
 #      password: "mypass"
 #    - user: "Admin2"
