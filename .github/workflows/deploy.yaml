@@ -69,7 +69,7 @@ jobs:
         run: |
           echo "Listing deployment folder contents:"
           ls -la ${{ github.workspace }}/deployment
-      - name: Create environment file on server  # env файл, где будет хранится в том числе и пароль
+      - name: Create environment file on server  # env файл,  где будет хранится в том числе и пароль
         run: |
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "\
           touch ${{ env.ENV_FILE_PATH }} && \
