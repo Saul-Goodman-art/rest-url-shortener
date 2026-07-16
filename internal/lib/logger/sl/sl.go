@@ -1,7 +1,7 @@
 package sl
 
 import (
-	"log/slog" // ✅ используем стандартный пакет
+	"log/slog"
 )
 
 func Err(err error) slog.Attr {

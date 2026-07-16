@@ -14,24 +14,6 @@ import (
 	"url-shortener/internal/storage"
 )
 
-/*
-Что делает код redirect
-Это HTTP-обработчик для редиректа — он принимает короткий алиас и перенаправляет пользователя на оригинальный URL.
-*/
-
-/*
-Общая схема работы:
-
-		Пользователь → GET /{alias}
-			↓
-		Хендлер извлекает алиас из URL
-			↓
-		Ищет оригинальный URL в БД по алиасу
-			↓
-		Если найден → редирект (302 Found)
-		Если не найден → ошибка 404 (JSON)
-*/
-
 // URLGetter is an interface for getting url by alias.
 //
 //go:generate go run github.com/vektra/mockery/v2@v2.28.2 --name=URLGetter
@@ -52,30 +34,29 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 		if alias == "" {
 			log.Info("alias is empty")
 
+			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.Error("invalid request"))
-
 			return
 		}
 
 		resURL, err := urlGetter.GetURL(alias)
 		if errors.Is(err, storage.ErrURLNotFound) {
-			log.Info("url not found", "alias", alias)
+			log.Info("url not found", slog.String("alias", alias))
 
+			render.Status(r, http.StatusNotFound)
 			render.JSON(w, r, resp.Error("not found"))
-
 			return
 		}
+
 		if err != nil {
 			log.Error("failed to get url", sl.Err(err))
 
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, resp.Error("internal error"))
-
 			return
 		}
 
 		log.Info("got url", slog.String("url", resURL))
-
-		// redirect to found url
 		http.Redirect(w, r, resURL, http.StatusFound)
 	}
 }
