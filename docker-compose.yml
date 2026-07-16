@@ -4,7 +4,7 @@ services:
     container_name: url_shortener_postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: W8m762xP!Lr9Qe5q3
+      POSTGRES_PASSWORD: qwepfcbaqwerfdgk45q12jfn5
       POSTGRES_DB: url_shortener
     ports:
       - "127.0.0.1:5432:5432"

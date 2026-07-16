@@ -79,6 +79,9 @@ To https://github.com/Saul-Goodman-art/rest-url-shortener.git
 * [new tag]         v0.0.1 -> v0.0.1
   PS C:\codemanya\actual\2_url_shortener_rest_api> 
 
+==========================================
+посмотерть бд в контенере:
+docker exec -it url_shortener_postgres psql -U postgres -l
 
 
 
