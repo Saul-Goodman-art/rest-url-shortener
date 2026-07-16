@@ -62,6 +62,10 @@ func main() {
 		users := map[string]string{}
 
 		for _, u := range cfg.HTTPServer.Users {
+			fmt.Printf("user=%q password=%q", u.User, u.Password)
+		}
+
+		for _, u := range cfg.HTTPServer.Users {
 			users[u.User] = u.Password
 		}
 
