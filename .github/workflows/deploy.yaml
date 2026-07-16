@@ -47,8 +47,6 @@ jobs:
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
 
-
-
       - name: Start PostgreSQL
         run: |
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "
@@ -63,9 +61,7 @@ jobs:
               echo 'Waiting PostgreSQL...'
               sleep 2
             done
-          "          
-          
-
+          "
       - name: Remove old systemd service file
         run: |
           ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "rm -f /etc/systemd/system/url-shortener.service"
