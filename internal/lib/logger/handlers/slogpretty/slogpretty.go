@@ -7,7 +7,7 @@ import (
 	stdLog "log"
 
 	"github.com/fatih/color"
-	"log/slog" // ✅ меняем на стандартный
+	"log/slog"
 )
 
 type PrettyHandlerOptions struct {
@@ -50,7 +50,6 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 
 	r.Attrs(func(a slog.Attr) bool {
 		fields[a.Key] = a.Value.Any()
-
 		return true
 	})
 
@@ -77,7 +76,6 @@ func (h *PrettyHandler) Handle(_ context.Context, r slog.Record) error {
 		msg,
 		color.WhiteString(string(b)),
 	)
-
 	return nil
 }
 
@@ -90,7 +88,6 @@ func (h *PrettyHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 }
 
 func (h *PrettyHandler) WithGroup(name string) slog.Handler {
-	// TODO: implement
 	return &PrettyHandler{
 		Handler: h.Handler.WithGroup(name),
 		l:       h.l,

@@ -1,4 +1,5 @@
-Надо удалить лишнее (что осталось от psql)
+проект сделан по видео:
+https://www.youtube.com/watch?v=rCJvW2xgnk0
 
 ==============================
 Запуск проекта:
@@ -68,6 +69,15 @@ github.com/testcontainers/testcontainers-go/modules/postgres — специфи�
 go test -v ./internal/storage/postgres -count=1
 
 
+========================================
+создаем тег для workflow:
+
+PS C:\codemanya\actual\2_url_shortener_rest_api> git tag v0.0.1
+PS C:\codemanya\actual\2_url_shortener_rest_api> git push rest-url-shortener v0.0.1
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+To https://github.com/Saul-Goodman-art/rest-url-shortener.git
+* [new tag]         v0.0.1 -> v0.0.1
+  PS C:\codemanya\actual\2_url_shortener_rest_api> 
 
 
 

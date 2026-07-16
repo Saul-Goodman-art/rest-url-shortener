@@ -44,7 +44,6 @@ func ValidationError(errs validator.ValidationErrors) Response {
 			errMsgs = append(errMsgs, fmt.Sprintf("field %s is not valid", err.Field()))
 		}
 	}
-
 	return Response{
 		Status: StatusError,
 		Error:  strings.Join(errMsgs, ", "),

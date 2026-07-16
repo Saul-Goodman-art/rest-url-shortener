@@ -30,6 +30,5 @@ func GetRedirect(url string) (string, error) {
 	}
 
 	defer func() { _ = resp.Body.Close() }()
-
 	return resp.Header.Get("Location"), nil
 }

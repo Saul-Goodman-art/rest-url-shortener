@@ -30,10 +30,8 @@ func main() {
 	log := setupLogger(cfg.Env)
 	log.Info("starting url-shortener", slog.String("env", cfg.Env))
 	log.Debug("debug messages are enabled")
-	log.Error("erorrororo. Это просто пример")
 
-	// НАЧАЛО: Запуск миграций (только для локальной разработки)
-	if cfg.Env == envLocal || cfg.Env == envDev {
+	if cfg.Env == envLocal || cfg.Env == envDev || cfg.Env == envProd {
 		log.Info("running database migrations...")
 		if err := postgres.RunMigrations(cfg.StorageDSN, "file://migrations"); err != nil {
 			log.Error("failed to run migrations", sl.Err(err))
@@ -41,39 +39,31 @@ func main() {
 		}
 		log.Info("migrations applied successfully")
 	}
-	// КОНЕЦ: Запуск миграций
 
 	storage, err := postgres.New(cfg.StorageDSN)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
-	_ = storage
+
 	router := chi.NewRouter()
 
-	router.Use(middleware.RequestID) //  chi Добавляет к каждому поступающему запросу RequestID
-	router.Use(middleware.Logger)    // chi
-	router.Use(mwLogger.New(log))    // MY LOGGER MIDDLEWEAR
-	router.Use(middleware.Recoverer) // chi
-	router.Use(middleware.URLFormat) // chi
+	router.Use(middleware.RequestID)
+	router.Use(middleware.Logger)
+	router.Use(mwLogger.New(log))
+	router.Use(middleware.Recoverer)
+	router.Use(middleware.URLFormat)
 
-	// все что внутри Этого нового роутера защищено авторизацией .
 	router.Route("/url", func(r chi.Router) {
-		users := map[string]string{}
-
-		for _, u := range cfg.HTTPServer.Users {
-			users[u.User] = u.Password
-		}
-
-		r.Use(middleware.BasicAuth("url-shortener", users))
+		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
+			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+		}))
 
 		r.Post("/", save.New(log, storage))
 		r.Delete("/{alias}", delete.New(log, storage))
 	})
 
-	//router.Post("/url", save.New(log, storage))
 	router.Get("/{alias}", redirect.New(log, storage))
-	//router.Delete("/url/{alias}", delete.New(log, storage)) //
 
 	log.Info("starting server", slog.String("address", cfg.Address))
 
@@ -91,14 +81,12 @@ func main() {
 	log.Error("server stopped")
 }
 
-// Эта функция будет зависеть от енв . На дев мы хотим видеть текстовый логер уровня дебаг , она прод мы хотим видеть логер уровня инфо
 func setupLogger(env string) *slog.Logger {
 	var log *slog.Logger
 
 	switch env {
 	case envLocal:
 		log = setupPrettySlog()
-
 	case envDev:
 		log = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
@@ -107,12 +95,11 @@ func setupLogger(env string) *slog.Logger {
 		log = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
 		)
-	default: // If env config is invalid, set prod settings by default due to security
+	default:
 		log = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
 		)
 	}
-
 	return log
 }
 
@@ -122,8 +109,6 @@ func setupPrettySlog() *slog.Logger {
 			Level: slog.LevelDebug,
 		},
 	}
-
 	handler := opts.NewPrettyHandler(os.Stdout)
-
 	return slog.New(handler)
 }

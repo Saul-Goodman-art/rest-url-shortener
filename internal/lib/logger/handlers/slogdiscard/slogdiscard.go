@@ -6,7 +6,6 @@ import (
 	"log/slog"
 )
 
-// По сути лакирование просто игнорируется . Это применяется для тестов
 func NewDiscardLogger() *slog.Logger {
 	return slog.New(NewDiscardHandler())
 }

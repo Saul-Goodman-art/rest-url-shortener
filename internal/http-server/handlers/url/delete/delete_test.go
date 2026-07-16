@@ -83,8 +83,6 @@ func TestDeleteHandler(t *testing.T) {
 			}
 
 			handler := delete.New(slogdiscard.NewDiscardLogger(), urlDeleterMock)
-
-			// Router для нормального прохождения через chi (непустые alias)
 			r := chi.NewRouter()
 			r.Delete("/url/{alias}", handler)
 
@@ -92,18 +90,14 @@ func TestDeleteHandler(t *testing.T) {
 			var rr *httptest.ResponseRecorder
 
 			if tc.alias == "" {
-				// Chi не матчит "/url/{alias}" для пути "/url" — используем "/url/" и вручную
-				// создаём RouteContext с пустым alias, чтобы chi.URLParam внутри хендлера вернул ""
 				req = httptest.NewRequest(http.MethodDelete, "/url/", nil)
 				rc := chi.NewRouteContext()
 				rc.URLParams.Add("alias", "")
 				req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rc))
 
 				rr = httptest.NewRecorder()
-				// Можно вызвать handler напрямую, но важно, чтобы в контексте был RouteContext
 				handler.ServeHTTP(rr, req)
 			} else {
-				// Нормальный путь через роутер
 				req = httptest.NewRequest(http.MethodDelete, "/url/"+tc.alias, nil)
 				rr = httptest.NewRecorder()
 				r.ServeHTTP(rr, req)
@@ -120,16 +114,12 @@ func TestDeleteHandler(t *testing.T) {
 				URL    string `json:"deleted-url"`
 			}
 
-			// Убедимся, что тело — валидный JSON от нашего хендлера
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-
 			require.Equal(t, tc.respError, resp.Error)
 
 			if tc.respError == "" {
 				require.Equal(t, tc.expectedURL, resp.URL)
 			}
-
-			// Проверяем структуру JSON
 			var raw map[string]any
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &raw))
 
@@ -146,11 +136,9 @@ func TestDeleteHandler(t *testing.T) {
 				_, ok = raw["error"]
 				require.True(t, ok)
 			}
-
 			if !tc.shouldCallMock {
 				urlDeleterMock.AssertNotCalled(t, "DeleteURL")
 			}
-
 			urlDeleterMock.AssertExpectations(t)
 		})
 	}
